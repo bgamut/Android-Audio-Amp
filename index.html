@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Android Audio Amplifier</title>
+  <style type="text/css">
+    h1 {
+        font-family: Helvetica, Arial;
+        font-weight: bold;
+        font-size: 18px;
+    }
+  
+    body, p{
+        background-color: black;
+        font-family: Helvetica, Arial;
+        font-size:10px;
+    }
+  canvas{
+      position:fixed;
+      top:50%;
+      left:50%;
+      -webkit-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+  }
+  </style>
+</head>
+<body>
+    <p id="list"></p>
+    <canvas id="wavedisplay" width="300" height="100"></canvas>
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script>
+
+try {
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContext();
+} catch(e) {
+    getElementById("list").html('Web Audio API is not supported in this browser');
+}
+try {
+    navigator.getUserMedia = navigator.getUserMedia ||
+    navigator.webkitGetUserMedia ||
+    navigator.mozGetUserMedia ||
+    navigator.msGetUserMedia;
+    var hasMicrophoneInput = (navigator.getUserMedia || navigator.webkitGetUserMedia ||
+                              navigator.mozGetUserMedia || navigator.msGetUserMedia);
+} catch(e) {
+    getElementById("list").html("getUserMedia() is not supported in your browser");
+}
+var audioContext = new AudioContext();
+var canvas=document.getElementById("wavedisplay");
+var ctx = canvas.getContext('2d');
+var gain=audioContext.createGain();
+gain.value=158489319.24611133;
+var f1=audioContext.createBiquadFilter();
+f1.type="highpass";
+f1.frequency.value=3000;
+var limiter=audioContext.createDynamicsCompressor();
+limiter.threshold.value=0.0;
+limiter.knee.value=0.0;
+limiter.ratio.value=20.0;
+limiter.attack.value=0.010;
+limiter.release.value=0.050;
+var analyser=audioContext.createAnalyser();
+analyser.fftSize=2048;
+var bufferLength=analyser.frequencyBinCount;
+var dataArray = new Uint8Array(bufferLength);
+function myPCMFilterFunction(inputSample) {
+       return inputSample ;
+}
+
+var errorCallback = function(e) {
+    getElementById("list").html("Error in getUserMedia: " + e);
+};
+
+
+
+navigator.getUserMedia({audio: true}, function(stream) {
+                       var microphone = audioContext.createMediaStreamSource(stream);
+                       microphone.connect(analyser);
+                       analyser.connect(f1);
+                       f1.connect(gain);
+                       gain.connect(limiter)
+                       limiter.connect(audioContext.destination);
+                       }, errorCallback);
+/*
+                       var bufferSize = 512;
+                       var myPCMProcessingNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+                       myPCMProcessingNode.onaudioprocess = function(e) {
+                           var canvas=document.getElementById("wavedisplay");
+                           var ctx = canvas.getContext('2d');
+                           var input = e.inputBuffer.getChannelData(0);
+                           var output = e.outputBuffer.getChannelData(0);
+                           var max=0.0;
+                           var min=0.0;
+                           for (var i = 0; i < bufferSize; i++) {
+                               if input[i]>max{max=input[i]};
+                               else if input[i]<min{min=input[i]};
+                               else{
+                               }
+                           }
+                           if max===0.0 && min===0.0{
+                           }
+                           else{
+                               ctx.beginPath();
+                               ctx.fillStyle="green";
+                               ctx.fillrect(0,150-(max-min),300,(max-min)-150);
+                               ctx.clearrect(0,150-(max-min),300,(max-min)-150);
+                           }
+                       }
+*/
+ctx.clearRect(0,0,300,100);
+function draw(){
+    requestAnimationFrame(draw);
+    analyser.getByteTimeDomainData(dataArray);
+    ctx.fillStyle='rgb(0,0,0)';
+        ctx.fillRect(0,0,300,100);
+    ctx.lineWidth=1;
+        ctx.strokeStyle='rgb(0,256,0)';
+        ctx.beginPath();
+    var sliceWidth=300*1.0/bufferLength;
+        var x=0;
+    for (var i=0; i<bufferLength; i++){
+        var v= dataArray[i]/128.0;
+        var y = v*100/2;
+        if(i===0){
+            ctx.moveTo(x,y);
+        } else{
+            ctx.lineTo(x,y);
+        }
+        x+=sliceWidth;
+    }
+    ctx.lineTo(300, 100/2)
+    ctx.stroke();
+};
+draw();
+
+
+
+
+</script>
+</html>
